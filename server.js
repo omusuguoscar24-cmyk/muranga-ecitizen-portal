@@ -8,12 +8,17 @@ const db = require('./database');
 
 const app = express();
 
-if (!fs.existsSync('./uploads')) {
-  fs.mkdirSync('./uploads');
+// Ensure uploads directory exists cleanly on server startup
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Storage Configuration for Multer
 const storage = multer.diskStorage({
-  destination: './uploads/',
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname));
   }
@@ -23,7 +28,7 @@ const upload = multer({ storage });
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 app.use(session({
   secret: 'ecitizen-muranga-key-2026',
@@ -32,6 +37,7 @@ app.use(session({
   cookie: { maxAge: 24 * 60 * 60 * 1000 }
 }));
 
+// Access Control Middlewares
 const requireAdmin = (req, res, next) => {
   if (!req.session.user || req.session.user.role !== 'admin') return res.redirect('/login');
   next();
@@ -42,7 +48,8 @@ const requireCitizen = (req, res, next) => {
   next();
 };
 
-// Routes
+// --- AUTH ROUTES ---
+
 app.get('/', (req, res) => {
   if (!req.session.user) return res.redirect('/login');
   return req.session.user.role === 'admin' ? res.redirect('/admin/dashboard') : res.redirect('/citizen/dashboard');
@@ -81,6 +88,8 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
+// --- CITIZEN DASHBOARD ROUTES ---
+
 app.get('/citizen/dashboard', requireCitizen, (req, res) => {
   db.all(
     'SELECT * FROM requests WHERE user_id = ? ORDER BY created_at DESC',
@@ -90,37 +99,27 @@ app.get('/citizen/dashboard', requireCitizen, (req, res) => {
     }
   );
 });
-app.post('/citizen/submit-request', upload.single('image'), (req, res) => {
-  if (!req.session.userId) {
-    return res.redirect('/login');
-  }
 
+// Single, clean route for citizen submission
+app.post('/citizen/submit-request', requireCitizen, upload.single('image'), (req, res) => {
   const { category, location, description } = req.body;
   const image_path = req.file ? `/uploads/${req.file.filename}` : null;
+  const ticket_number = 'MRC-' + Math.floor(100000 + Math.random() * 900000);
 
   db.run(
-    `INSERT INTO requests (user_id, category, location, description, image_path) VALUES (?, ?, ?, ?, ?)`,
-    [req.session.userId, category, location, description, image_path],
+    'INSERT INTO requests (user_id, category, location, description, image_path, ticket_number, status, assigned_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [req.session.user.id, category, location, description, image_path, ticket_number, 'Pending', 'Unassigned'],
     (err) => {
       if (err) {
-        console.error(err);
-        return res.status(500).send("Database insertion error");
+        console.error('Submission DB Error:', err);
+        return res.status(500).send("Database error occurred while filing report.");
       }
       res.redirect('/citizen/dashboard');
     }
   );
 });
-app.post('/citizen/submit-request', requireCitizen, upload.single('image'), (req, res) => {
-  const { category, location, description } = req.body;
-  const image_path = req.file ? `/uploads/${req.file.filename}` : null;
-const ticket_number = 'MRC-' + Math.floor(100000 + Math.random() * 900000);
 
-db.run(
-  'INSERT INTO requests (user_id, category, location, description, image_path, ticket_number) VALUES (?, ?, ?, ?, ?, ?)',
-  [req.session.user.id, category, location, description, image_path, ticket_number],
-  () => res.redirect('/citizen/dashboard')
-);
-});
+// --- ADMIN DASHBOARD ROUTES ---
 
 app.get('/admin/dashboard', requireAdmin, (req, res) => {
   const filterCategory = req.query.category || '';
@@ -157,10 +156,11 @@ app.get('/admin/dashboard', requireAdmin, (req, res) => {
     });
   });
 });
+
 app.get('/admin/export-csv', requireAdmin, (req, res) => {
   db.all('SELECT requests.*, users.name, users.email FROM requests JOIN users ON requests.user_id = users.id', [], (err, rows) => {
     let csv = 'Ticket Number,Citizen,Email,Category,Location,Status,Assigned Department,Date\n';
-    rows.forEach(r => {
+    (rows || []).forEach(r => {
       csv += `"${r.ticket_number || 'N/A'}","${r.name}","${r.email}","${r.category}","${r.location}","${r.status}","${r.assigned_to || 'Unassigned'}","${r.created_at}"\n`;
     });
     res.setHeader('Content-Type', 'text/csv');
@@ -168,6 +168,7 @@ app.get('/admin/export-csv', requireAdmin, (req, res) => {
     res.status(200).send(csv);
   });
 });
+
 app.post('/admin/update-status/:id', requireAdmin, (req, res) => {
   const { status, assigned_to } = req.body;
   
@@ -182,5 +183,8 @@ app.post('/admin/update-status/:id', requireAdmin, (req, res) => {
     }
   );
 });
+
+// --- SERVER BINDING FOR RENDER ---
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 eCitizen Portal active on http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 eCitizen Portal active on port ${PORT}`));
