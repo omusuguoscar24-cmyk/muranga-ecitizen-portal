@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Citizen Portal - eCitizen</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <header class="bg-[#002244] text-white border-b-4 border-[#006633] p-4 shadow">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="bg-emerald-600 text-white font-bold p-2 rounded text-lg">eC</div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight">eCitizen Portal</h1>
+          <p class="text-xs text-gray-300">County Service Desk</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-sm">
+        <span>Logged in as: <strong class="text-amber-300"><%= user.name %></strong></span>
+        <a href="/logout" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-xs font-medium">Logout</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Form Section -->
+    <div class="md:col-span-1 bg-white p-6 rounded-lg shadow border border-gray-200 h-fit">
+      <h2 class="text-lg font-bold text-[#002244] mb-4 border-b pb-2">Report a Service Issue</h2>
+      <form action="/citizen/submit-request" method="POST" enctype="multipart/form-data" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">Issue Category</label>
+          <select name="category" required class="w-full border p-2 rounded text-sm bg-gray-50 focus:bg-white">
+            <option value="Streetlight">Streetlight Maintenance</option>
+            <option value="Water Issue">Water & Sewerage</option>
+            <option value="Garbage Collection">Garbage Collection</option>
+            <option value="Road Maintenance">Road Maintenance / Pothole</option>
+            <option value="Other">Other Public Service</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">Location / Ward</label>
+          <input type="text" name="location" required placeholder="e.g. Murang'a Town, Ward 3" class="w-full border p-2 rounded text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">Description</label>
+          <textarea name="description" required rows="3" placeholder="Provide details about the issue..." class="w-full border p-2 rounded text-sm"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">Upload Photo (Optional)</label>
+          <input type="file" name="image" accept="image/*" class="w-full text-xs text-gray-500 border p-1 rounded">
+        </div>
+        <button type="submit" class="w-full bg-[#006633] hover:bg-[#004d26] text-white font-semibold py-2 rounded text-sm">
+          Submit Report
+        </button>
+      </form>
+    </div>
+
+    <!-- Requests Table -->
+    <div class="md:col-span-2 bg-white p-6 rounded-lg shadow border border-gray-200">
+      <h2 class="text-lg font-bold text-[#002244] mb-4 border-b pb-2">My Submitted Requests</h2>
+      <% if (requests.length === 0) { %>
+        <div class="text-center py-8 text-gray-500 text-sm">No requests submitted yet.</div>
+      <% } else { %>
+        <div class="space-y-4">
+          <% requests.forEach(r => { %>
+            <div class="border rounded-lg p-4 bg-gray-50 flex justify-between items-start">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-bold text-[#002244] text-sm"><%= r.category %></span>
+                  <span class="text-xs px-2 py-0.5 rounded font-semibold
+                    <%= r.status === 'Pending' ? 'bg-amber-100 text-amber-800' : '' %>
+                    <%= r.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : '' %>
+                    <%= r.status === 'Resolved' ? 'bg-emerald-100 text-emerald-800' : '' %>">
+                    <%= r.status %>
+                  </span>
+                </div>
+                <p class="text-xs text-gray-600 mb-1"><strong>Location:</strong> <%= r.location %></p>
+                <p class="text-sm text-gray-800"><%= r.description %></p>
+                <p class="text-[10px] text-gray-400 mt-2">Submitted on: <%= new Date(r.created_at).toLocaleString() %></p>
+              </div>
+              <% if(r.image_path) { %>
+                <a href="<%= r.image_path %>" target="_blank" class="border p-1 bg-white rounded shadow-sm hover:opacity-80">
+                  <img src="<%= r.image_path %>" class="w-16 h-16 object-cover rounded">
+                </a>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </main>
+</body>
+</html>

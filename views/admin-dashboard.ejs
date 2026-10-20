@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Portal - eCitizen</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <header class="bg-[#002244] text-white border-b-4 border-[#006633] p-4 shadow">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="bg-emerald-600 text-white font-bold p-2 rounded text-lg">eC</div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight">eCitizen Administrative Dashboard</h1>
+          <p class="text-xs text-gray-300">County Service Management</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-sm">
+        <span>Admin: <strong class="text-amber-300"><%= user.name %></strong></span>
+        <a href="/logout" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-xs font-medium">Logout</a>
+      </div>
+    </div>
+    <div>
+      <a href="/admin/export-csv" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-2">
+  📥 Export Report (CSV)
+</a>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-6 space-y-6">
+    <!-- Analytics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-white p-4 rounded-lg shadow border-l-4 border-[#002244]">
+        <p class="text-gray-500 text-xs font-semibold uppercase">Total Requests</p>
+        <p class="text-2xl font-bold text-[#002244]"><%= analytics.total %></p>
+      </div>
+      <div class="bg-white p-4 rounded-lg shadow border-l-4 border-amber-500">
+        <p class="text-gray-500 text-xs font-semibold uppercase">Pending Action</p>
+        <p class="text-2xl font-bold text-amber-600"><%= analytics.pending %></p>
+      </div>
+      <div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+        <p class="text-gray-500 text-xs font-semibold uppercase">In Progress</p>
+        <p class="text-2xl font-bold text-blue-600"><%= analytics.inProgress %></p>
+      </div>
+      <div class="bg-white p-4 rounded-lg shadow border-l-4 border-emerald-500">
+        <p class="text-gray-500 text-xs font-semibold uppercase">Resolved Cases</p>
+        <p class="text-2xl font-bold text-emerald-600"><%= analytics.resolved %></p>
+      </div>
+    </div>
+
+    <!-- Filter Bar (Bonus Feature) -->
+    <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <form action="/admin/dashboard" method="GET" class="flex flex-wrap items-center gap-4 text-sm">
+        <span class="font-bold text-gray-700 text-xs uppercase">Filter Requests:</span>
+        <select name="category" class="border p-2 rounded text-xs">
+          <option value="">All Categories</option>
+          <option value="Streetlight" <%= filters.category === 'Streetlight' ? 'selected' : '' %>>Streetlight</option>
+          <option value="Water Issue" <%= filters.category === 'Water Issue' ? 'selected' : '' %>>Water Issue</option>
+          <option value="Garbage Collection" <%= filters.category === 'Garbage Collection' ? 'selected' : '' %>>Garbage Collection</option>
+          <option value="Road Maintenance" <%= filters.category === 'Road Maintenance' ? 'selected' : '' %>>Road Maintenance</option>
+        </select>
+        <select name="status" class="border p-2 rounded text-xs">
+          <option value="">All Statuses</option>
+          <option value="Pending" <%= filters.status === 'Pending' ? 'selected' : '' %>>Pending</option>
+          <option value="In Progress" <%= filters.status === 'In Progress' ? 'selected' : '' %>>In Progress</option>
+          <option value="Resolved" <%= filters.status === 'Resolved' ? 'selected' : '' %>>Resolved</option>
+        </select>
+        <button type="submit" class="bg-[#002244] text-white px-3 py-1.5 rounded text-xs font-medium">Apply Filters</button>
+        <a href="/admin/dashboard" class="text-xs text-gray-500 underline">Reset</a>
+      </form>
+    </div>
+
+    <!-- Request Table -->
+<!-- Request Table -->
+    <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-[#002244] text-white text-xs uppercase">
+          <tr>
+            <th class="p-3">Citizen</th>
+            <th class="p-3">Category</th>
+            <th class="p-3">Location</th>
+            <th class="p-3">Description</th>
+            <th class="p-3">Image</th>
+            <th class="p-3">Status</th>
+            <th class="p-3">Assigned Department</th>
+            <th class="p-3">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 text-xs">
+          <% if(requests.length === 0) { %>
+            <tr><td colspan="8" class="p-4 text-center text-gray-500">No requests found matching criteria.</td></tr>
+          <% } %>
+          <% requests.forEach(r => { %>
+            <tr class="hover:bg-slate-50">
+              <td class="p-3">
+                <div class="font-bold text-gray-800"><%= r.citizen_name %></div>
+                <div class="text-[10px] text-gray-500"><%= r.citizen_email %></div>
+              </td>
+              <td class="p-3 font-semibold text-gray-700"><%= r.category %></td>
+              <td class="p-3"><%= r.location %></td>
+              <td class="p-3 text-gray-600 max-w-xs"><%= r.description %></td>
+              <td class="p-3">
+                <% if(r.image_path) { %>
+                  <a href="<%= r.image_path %>" target="_blank" class="text-blue-600 font-bold underline">View Photo</a>
+                <% } else { %> - <% } %>
+              </td>
+              <td class="p-3">
+                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase
+                  <%= r.status === 'Pending' ? 'bg-amber-100 text-amber-800' : '' %>
+                  <%= r.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : '' %>
+                  <%= r.status === 'Resolved' ? 'bg-emerald-100 text-emerald-800' : '' %>">
+                  <%= r.status %>
+                </span>
+              </td>
+              <td class="p-3 font-semibold text-indigo-700">
+                <%= r.assigned_to || 'Unassigned' %>
+              </td>
+              <td class="p-3">
+                <form action="/admin/update-status/<%= r.id %>" method="POST" class="flex flex-col gap-1">
+                  <select name="status" class="border rounded text-[11px] p-1">
+                    <option value="Pending" <%= r.status === 'Pending' ? 'selected' : '' %>>Pending</option>
+                    <option value="In Progress" <%= r.status === 'In Progress' ? 'selected' : '' %>>In Progress</option>
+                    <option value="Resolved" <%= r.status === 'Resolved' ? 'selected' : '' %>>Resolved</option>
+                  </select>
+                  <select name="assigned_to" class="border rounded text-[11px] p-1 bg-amber-50">
+                    <option value="Unassigned" <%= r.assigned_to === 'Unassigned' ? 'selected' : '' %>>-- Assign Dept --</option>
+                    <option value="Water & Sewerage Dept" <%= r.assigned_to === 'Water & Sewerage Dept' ? 'selected' : '' %>>Water & Sewerage Dept</option>
+                    <option value="Electrical & Lighting Team" <%= r.assigned_to === 'Electrical & Lighting Team' ? 'selected' : '' %>>Electrical & Lighting Team</option>
+                    <option value="Sanitation & Garbage Crew" <%= r.assigned_to === 'Sanitation & Garbage Crew' ? 'selected' : '' %>>Sanitation & Garbage Crew</option>
+                    <option value="Roads & Infrastructure Unit" <%= r.assigned_to === 'Roads & Infrastructure Unit' ? 'selected' : '' %>>Roads & Infrastructure Unit</option>
+                  </select>
+                  <button type="submit" class="bg-[#006633] text-white text-[11px] px-2 py-1 rounded font-semibold mt-1">Save Update</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>
