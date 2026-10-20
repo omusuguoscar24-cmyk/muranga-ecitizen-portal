@@ -90,7 +90,26 @@ app.get('/citizen/dashboard', requireCitizen, (req, res) => {
     }
   );
 });
+app.post('/citizen/submit-request', upload.single('image'), (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect('/login');
+  }
 
+  const { category, location, description } = req.body;
+  const image_path = req.file ? `/uploads/${req.file.filename}` : null;
+
+  db.run(
+    `INSERT INTO requests (user_id, category, location, description, image_path) VALUES (?, ?, ?, ?, ?)`,
+    [req.session.userId, category, location, description, image_path],
+    (err) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).send("Database insertion error");
+      }
+      res.redirect('/citizen/dashboard');
+    }
+  );
+});
 app.post('/citizen/submit-request', requireCitizen, upload.single('image'), (req, res) => {
   const { category, location, description } = req.body;
   const image_path = req.file ? `/uploads/${req.file.filename}` : null;
